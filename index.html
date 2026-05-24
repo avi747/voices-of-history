@@ -1557,6 +1557,7 @@ function openChat(persona) {
 
 function goBack() {
   stopBlinking();
+  stopAudio();
   setPortraitSpeaking(false);
   document.getElementById('chat-screen').classList.remove('active');
   document.getElementById('select-screen').classList.add('active');
