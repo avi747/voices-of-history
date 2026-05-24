@@ -670,6 +670,53 @@
 
   .audio-toggle:hover { border-color: var(--gold); color: var(--gold); }
 
+  .audio-player {
+    display: none;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .audio-player.visible { display: flex; }
+
+  .audio-pp-btn {
+    background: none;
+    border: 1px solid rgba(201,151,58,0.4);
+    color: var(--gold);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    padding: 0;
+  }
+
+  .audio-pp-btn:hover {
+    background: rgba(201,151,58,0.15);
+    border-color: var(--gold);
+  }
+
+  .audio-progress-wrap {
+    width: 100px;
+    height: 3px;
+    background: rgba(201,151,58,0.2);
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .audio-progress-bar {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+
   .audio-wave {
     display: none;
     gap: 2px;
@@ -769,9 +816,15 @@
       <button id="send-btn" onclick="sendMessage()">Ask</button>
     </div>
     <div class="audio-controls">
-      <button class="audio-toggle" id="audio-toggle-btn" onclick="toggleAudio()">🔇 Audio Off</button>
-      <div class="audio-wave" id="audio-wave">
-        <span></span><span></span><span></span><span></span><span></span>
+      <button class="audio-toggle on" id="audio-toggle-btn" onclick="toggleAudio()">🔊 Audio On</button>
+      <div class="audio-player" id="audio-player">
+        <button class="audio-pp-btn" id="audio-pp-btn" onclick="togglePlayPause()" title="Play / Pause">▶</button>
+        <div class="audio-progress-wrap" id="audio-progress-wrap">
+          <div class="audio-progress-bar" id="audio-progress-bar"></div>
+        </div>
+        <div class="audio-wave" id="audio-wave">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
       </div>
     </div>
     <p class="disclaimer">AI-simulated voice · Not a historical transcript</p>
@@ -782,7 +835,7 @@
 var GAS_URL = "https://script.google.com/macros/s/AKfycbxzA-IL5rRYX_s9K4nji4PBedV6zupMKZDu9vmgydmAkD_vUgyZGbZjsYCIqSsm_Wst/exec";
 var PERSONAS = [];
 var currentLanguage = "en";
-var audioEnabled = false;
+var audioEnabled = true;
 var currentAudio = null;
 
 var LANG_LABELS = {
@@ -861,11 +914,40 @@ function playAudioB64(b64) {
     var blob = new Blob([bytes], { type: 'audio/mpeg' });
     var url = URL.createObjectURL(blob);
     currentAudio = new Audio(url);
-    var wave = document.getElementById('audio-wave');
-    if (wave) wave.classList.add('playing');
+
+    var wave    = document.getElementById('audio-wave');
+    var player  = document.getElementById('audio-player');
+    var ppBtn   = document.getElementById('audio-pp-btn');
+    var progBar = document.getElementById('audio-progress-bar');
+    var progWrap= document.getElementById('audio-progress-wrap');
+
+    if (player)  player.classList.add('visible');
+    if (wave)    wave.classList.add('playing');
+    if (ppBtn)   ppBtn.textContent = '⏸';
+
+    currentAudio.addEventListener('timeupdate', function() {
+      if (currentAudio && currentAudio.duration) {
+        var pct = (currentAudio.currentTime / currentAudio.duration) * 100;
+        if (progBar) progBar.style.width = pct + '%';
+      }
+    });
+
+    // Click on progress bar to seek
+    if (progWrap) {
+      progWrap.onclick = function(e) {
+        if (!currentAudio || !currentAudio.duration) return;
+        var rect = progWrap.getBoundingClientRect();
+        var pct = (e.clientX - rect.left) / rect.width;
+        currentAudio.currentTime = pct * currentAudio.duration;
+      };
+    }
+
     currentAudio.play();
+
     currentAudio.onended = function() {
-      if (wave) wave.classList.remove('playing');
+      if (wave)    wave.classList.remove('playing');
+      if (ppBtn)   ppBtn.textContent = '▶';
+      if (progBar) progBar.style.width = '0%';
       URL.revokeObjectURL(url);
     };
   } catch(e) {
@@ -874,13 +956,34 @@ function playAudioB64(b64) {
   }
 }
 
+function togglePlayPause() {
+  if (!currentAudio) return;
+  var ppBtn = document.getElementById('audio-pp-btn');
+  var wave  = document.getElementById('audio-wave');
+  if (currentAudio.paused) {
+    currentAudio.play();
+    if (ppBtn) ppBtn.textContent = '⏸';
+    if (wave)  wave.classList.add('playing');
+  } else {
+    currentAudio.pause();
+    if (ppBtn) ppBtn.textContent = '▶';
+    if (wave)  wave.classList.remove('playing');
+  }
+}
+
 function stopAudio() {
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
   }
-  var wave = document.getElementById('audio-wave');
-  if (wave) wave.classList.remove('playing');
+  var wave    = document.getElementById('audio-wave');
+  var player  = document.getElementById('audio-player');
+  var ppBtn   = document.getElementById('audio-pp-btn');
+  var progBar = document.getElementById('audio-progress-bar');
+  if (wave)    wave.classList.remove('playing');
+  if (player)  player.classList.remove('visible');
+  if (ppBtn)   ppBtn.textContent = '▶';
+  if (progBar) progBar.style.width = '0%';
 }
 
 // ── PERSONA MAPPING ──
