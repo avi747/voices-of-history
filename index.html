@@ -575,21 +575,21 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 16px 0 0 20px;
-    width: 130px;
+    padding: 16px 12px 16px 16px;
+    width: 200px;
   }
 
   .portrait-frame {
     position: relative;
-    width: 110px;
-    height: 110px;
+    width: 172px;
+    height: 220px;
   }
 
   /* Outer glow ring — pulses when speaking */
   .portrait-glow {
     position: absolute;
     inset: -6px;
-    border-radius: 50%;
+    border-radius: 4px;
     background: transparent;
     border: 2px solid rgba(201,151,58,0.2);
     transition: all 0.4s ease;
@@ -609,67 +609,146 @@
     50%       { box-shadow: 0 0 20px rgba(201,151,58,0.6), 0 0 40px rgba(201,151,58,0.3), 0 0 60px rgba(201,151,58,0.15); }
   }
 
-  /* Portrait image — breathes and sways gently */
-  .portrait-animated {
-    width: 110px;
-    height: 110px;
-    border-radius: 50%;
-    object-fit: cover;
-    object-position: top center;
-    border: 2px solid var(--gold);
-    filter: sepia(25%) contrast(1.08);
-    animation: breathe 5s ease-in-out infinite;
-    transform-origin: bottom center;
+  /* Painted portrait frame — decorative border */
+  .portrait-frame::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 3px;
+    border: 1px solid rgba(201,151,58,0.25);
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .portrait-frame::after {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border-radius: 4px;
+    border: 1px solid rgba(201,151,58,0.12);
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  /* Portrait wrapper — handles position shift (head tilt/sway) */
+  .portrait-mover {
     position: relative;
+    width: 172px;
+    height: 220px;
+    animation: idleSway 7s ease-in-out infinite;
+    transform-origin: bottom center;
     z-index: 1;
   }
 
-  @keyframes breathe {
-    0%   { transform: scale(1)    rotate(0deg);    filter: sepia(25%) contrast(1.08) brightness(1); }
-    25%  { transform: scale(1.012) rotate(0.3deg); filter: sepia(25%) contrast(1.08) brightness(1.02); }
-    50%  { transform: scale(1.018) rotate(0deg);   filter: sepia(25%) contrast(1.08) brightness(1.03); }
-    75%  { transform: scale(1.012) rotate(-0.3deg);filter: sepia(25%) contrast(1.08) brightness(1.02); }
-    100% { transform: scale(1)    rotate(0deg);    filter: sepia(25%) contrast(1.08) brightness(1); }
+  .portrait-mover.speaking {
+    animation: speakMove 2.8s ease-in-out infinite;
   }
 
-  /* Sway when speaking */
+  @keyframes idleSway {
+    0%   { transform: rotate(0deg)    translateX(0px)   translateY(0px); }
+    15%  { transform: rotate(0.4deg)  translateX(1px)   translateY(-1px); }
+    30%  { transform: rotate(0.6deg)  translateX(2px)   translateY(-2px); }
+    45%  { transform: rotate(0.2deg)  translateX(1px)   translateY(-1px); }
+    55%  { transform: rotate(-0.3deg) translateX(-1px)  translateY(-1px); }
+    70%  { transform: rotate(-0.6deg) translateX(-2px)  translateY(-2px); }
+    85%  { transform: rotate(-0.3deg) translateX(-1px)  translateY(-1px); }
+    100% { transform: rotate(0deg)    translateX(0px)   translateY(0px); }
+  }
+
+  @keyframes speakMove {
+    0%   { transform: rotate(0deg)    translateX(0px)  translateY(0px); }
+    12%  { transform: rotate(0.8deg)  translateX(2px)  translateY(-2px); }
+    25%  { transform: rotate(1deg)    translateX(3px)  translateY(-3px); }
+    37%  { transform: rotate(0.4deg)  translateX(1px)  translateY(-1px); }
+    50%  { transform: rotate(-0.6deg) translateX(-2px) translateY(-2px); }
+    62%  { transform: rotate(-1deg)   translateX(-3px) translateY(-3px); }
+    75%  { transform: rotate(-0.5deg) translateX(-1px) translateY(-1px); }
+    87%  { transform: rotate(0.2deg)  translateX(1px)  translateY(-1px); }
+    100% { transform: rotate(0deg)    translateX(0px)  translateY(0px); }
+  }
+
+  /* Portrait image — handles scale + lighting */
+  .portrait-animated {
+    width: 172px;
+    height: 220px;
+    border-radius: 2px;
+    object-fit: cover;
+    object-position: top center;
+    border: 2px solid var(--gold);
+    filter: sepia(30%) contrast(1.08) brightness(0.95);
+    animation: idleLighting 7s ease-in-out infinite;
+    transform-origin: center;
+    position: relative;
+    display: block;
+    box-shadow:
+      4px 4px 16px rgba(0,0,0,0.4);
+  }
+
+  @keyframes idleLighting {
+    0%   { filter: sepia(30%) contrast(1.08) brightness(0.95); transform: scale(1); }
+    25%  { filter: sepia(26%) contrast(1.09) brightness(0.97); transform: scale(1.005); }
+    50%  { filter: sepia(24%) contrast(1.10) brightness(0.98); transform: scale(1.008); }
+    75%  { filter: sepia(26%) contrast(1.09) brightness(0.97); transform: scale(1.005); }
+    100% { filter: sepia(30%) contrast(1.08) brightness(0.95); transform: scale(1); }
+  }
+
   .portrait-animated.speaking {
-    animation: speakSway 3s ease-in-out infinite;
+    animation: speakLighting 2.8s ease-in-out infinite;
   }
 
-  @keyframes speakSway {
-    0%   { transform: scale(1.01) rotate(0deg);    filter: sepia(20%) contrast(1.1) brightness(1.04); }
-    20%  { transform: scale(1.02) rotate(0.5deg);  filter: sepia(20%) contrast(1.1) brightness(1.06); }
-    40%  { transform: scale(1.025) rotate(-0.4deg);filter: sepia(20%) contrast(1.1) brightness(1.05); }
-    60%  { transform: scale(1.02) rotate(0.3deg);  filter: sepia(20%) contrast(1.1) brightness(1.06); }
-    80%  { transform: scale(1.015) rotate(-0.2deg);filter: sepia(20%) contrast(1.1) brightness(1.04); }
-    100% { transform: scale(1.01) rotate(0deg);    filter: sepia(20%) contrast(1.1) brightness(1.04); }
+  @keyframes speakLighting {
+    0%   { filter: sepia(18%) contrast(1.12) brightness(1.02); transform: scale(1.01); }
+    20%  { filter: sepia(14%) contrast(1.14) brightness(1.06); transform: scale(1.018); }
+    40%  { filter: sepia(16%) contrast(1.13) brightness(1.04); transform: scale(1.014); }
+    60%  { filter: sepia(14%) contrast(1.14) brightness(1.07); transform: scale(1.018); }
+    80%  { filter: sepia(16%) contrast(1.12) brightness(1.04); transform: scale(1.012); }
+    100% { filter: sepia(18%) contrast(1.12) brightness(1.02); transform: scale(1.01); }
   }
 
-  /* Blink overlay */
-  .portrait-blink {
+  /* Candlelight flicker layer */
+  .portrait-flicker {
     position: absolute;
-    top: 28%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 60%;
-    height: 12%;
-    border-radius: 50%;
-    background: transparent;
+    inset: 0;
+    border-radius: 2px;
+    background: radial-gradient(ellipse at 35% 30%, rgba(255,200,80,0.06) 0%, transparent 65%);
+    animation: flicker 3.1s ease-in-out infinite;
     z-index: 2;
     pointer-events: none;
   }
 
-  /* Persona name under portrait */
+  @keyframes flicker {
+    0%   { opacity: 0.4; background-position: 35% 30%; }
+    20%  { opacity: 0.7; }
+    35%  { opacity: 0.3; }
+    50%  { opacity: 0.8; }
+    65%  { opacity: 0.4; }
+    80%  { opacity: 0.6; }
+    100% { opacity: 0.4; }
+  }
+
+  /* Vignette overlay — painted look */
+  .portrait-vignette {
+    position: absolute;
+    inset: 0;
+    border-radius: 2px;
+    background: radial-gradient(ellipse at 50% 40%, transparent 40%, rgba(0,0,0,0.4) 100%);
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  /* Persona name under portrait — like a painting caption */
   .portrait-name {
     font-family: 'Cormorant Garamond', serif;
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
     color: var(--sepia-light);
-    margin-top: 10px;
+    margin-top: 12px;
     text-align: center;
+    border-top: 1px solid rgba(201,151,58,0.2);
+    padding-top: 8px;
+    width: 100%;
   }
 
   /* Chat messages area with portrait sidebar */
@@ -694,6 +773,42 @@
   .chat-messages-wrap::-webkit-scrollbar { width: 6px; }
   .chat-messages-wrap::-webkit-scrollbar-track { background: transparent; }
   .chat-messages-wrap::-webkit-scrollbar-thumb { background: var(--sepia-light); border-radius: 3px; }
+
+
+  /* ── AMPLITUDE ANIMATION LAYERS ── */
+  .portrait-mouth {
+    position: absolute;
+    bottom: 28%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38%;
+    height: 8%;
+    border-radius: 50%;
+    background: transparent;
+    z-index: 4;
+    pointer-events: none;
+    transition: transform 0.05s ease;
+  }
+
+  .portrait-eyes {
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 70%;
+    height: 12%;
+    background: transparent;
+    z-index: 4;
+    pointer-events: none;
+    transition: filter 0.08s ease;
+  }
+
+  .portrait-head {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+  }
 
   /* ── LANGUAGE SELECTOR ── */
   .lang-selector {
@@ -928,8 +1043,13 @@
     <div class="portrait-stage" id="portrait-stage">
       <div class="portrait-frame">
         <div class="portrait-glow" id="portrait-glow"></div>
-        <img class="portrait-animated" id="portrait-animated" src="" alt="">
-        <div class="portrait-blink" id="portrait-blink"></div>
+        <div class="portrait-mover" id="portrait-mover">
+          <img class="portrait-animated" id="portrait-animated" src="" alt="">
+          <div class="portrait-flicker"></div>
+          <div class="portrait-vignette"></div>
+          <div class="portrait-mouth" id="portrait-mouth"></div>
+          <div class="portrait-eyes" id="portrait-eyes"></div>
+        </div>
       </div>
       <div class="portrait-name" id="portrait-name"></div>
     </div>
@@ -988,22 +1108,18 @@ function initPortrait(persona) {
 }
 
 function setPortraitSpeaking(speaking) {
-  var img  = document.getElementById('portrait-animated');
-  var glow = document.getElementById('portrait-glow');
-  if (img) {
+  var img   = document.getElementById('portrait-animated');
+  var glow  = document.getElementById('portrait-glow');
+  var mover = document.getElementById('portrait-mover');
+  var els   = [img, glow, mover];
+  els.forEach(function(el) {
+    if (!el) return;
     if (speaking) {
-      img.classList.add('speaking');
+      el.classList.add('speaking');
     } else {
-      img.classList.remove('speaking');
+      el.classList.remove('speaking');
     }
-  }
-  if (glow) {
-    if (speaking) {
-      glow.classList.add('speaking');
-    } else {
-      glow.classList.remove('speaking');
-    }
-  }
+  });
 }
 
 function startBlinking() {
@@ -1095,6 +1211,9 @@ function toggleAudio() {
   }
 }
 
+var audioCtx = null;
+var ampAnimFrame = null;
+
 function playAudioB64(b64) {
   stopAudio();
   try {
@@ -1106,6 +1225,7 @@ function playAudioB64(b64) {
     var blob = new Blob([bytes], { type: 'audio/mpeg' });
     var url = URL.createObjectURL(blob);
     currentAudio = new Audio(url);
+    currentAudio.crossOrigin = 'anonymous';
 
     var wave    = document.getElementById('audio-wave');
     var player  = document.getElementById('audio-player');
@@ -1124,7 +1244,6 @@ function playAudioB64(b64) {
       }
     });
 
-    // Click on progress bar to seek
     if (progWrap) {
       progWrap.onclick = function(e) {
         if (!currentAudio || !currentAudio.duration) return;
@@ -1136,8 +1255,10 @@ function playAudioB64(b64) {
 
     setPortraitSpeaking(true);
     currentAudio.play();
+    startAmplitudeAnimation(currentAudio);
 
     currentAudio.onended = function() {
+      stopAmplitudeAnimation();
       setPortraitSpeaking(false);
       if (wave)    wave.classList.remove('playing');
       if (ppBtn)   ppBtn.textContent = '▶';
@@ -1150,6 +1271,82 @@ function playAudioB64(b64) {
   }
 }
 
+function startAmplitudeAnimation(audioEl) {
+  try {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    var source   = audioCtx.createMediaElementSource(audioEl);
+    var analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.7;
+    source.connect(analyser);
+    analyser.connect(audioCtx.destination);
+
+    var dataArray = new Uint8Array(analyser.frequencyBinCount);
+    var mouth  = document.getElementById('portrait-mouth');
+    var mover  = document.getElementById('portrait-mover');
+    var imgEl  = document.getElementById('portrait-animated');
+    var smoothAmp = 0;
+
+    function tick() {
+      ampAnimFrame = requestAnimationFrame(tick);
+      analyser.getByteFrequencyData(dataArray);
+
+      // Average mid-range speech frequencies
+      var sum = 0;
+      var count = Math.floor(dataArray.length * 0.4);
+      for (var i = 4; i < count; i++) { sum += dataArray[i]; }
+      var raw = sum / (count - 4) / 255;
+
+      // Smooth it
+      smoothAmp = smoothAmp * 0.6 + raw * 0.4;
+      var amp = smoothAmp;
+
+      // Mouth — subtle open/close shadow
+      if (mouth) {
+        var scaleY = 1 + amp * 2.5;
+        var scaleX = 1 + amp * 0.8;
+        mouth.style.transform = 'translateX(-50%) scaleY(' + scaleY + ') scaleX(' + scaleX + ')';
+        mouth.style.background = amp > 0.08
+          ? 'radial-gradient(ellipse, rgba(0,0,0,' + (amp * 0.35) + ') 30%, transparent 70%)'
+          : 'transparent';
+      }
+
+      // Head nudge — vertical bob on amplitude peaks
+      if (mover) {
+        var nudge = amp > 0.15 ? -(amp * 3) : 0;
+        mover.style.marginTop = (mover.classList.contains('speaking') ? nudge * 0.5 : nudge) + 'px';
+      }
+
+      // Brightness pulse on peaks
+      if (imgEl && amp > 0.2) {
+        var boost = 1 + amp * 0.12;
+        imgEl.style.filter = 'sepia(18%) contrast(1.12) brightness(' + boost + ')';
+      } else if (imgEl) {
+        imgEl.style.filter = '';
+      }
+    }
+
+    tick();
+  } catch(e) {
+    console.log('Amplitude animation unavailable:', e.message);
+  }
+}
+
+function stopAmplitudeAnimation() {
+  if (ampAnimFrame) {
+    cancelAnimationFrame(ampAnimFrame);
+    ampAnimFrame = null;
+  }
+  var mouth = document.getElementById('portrait-mouth');
+  var mover = document.getElementById('portrait-mover');
+  var imgEl = document.getElementById('portrait-animated');
+  if (mouth) { mouth.style.transform = 'translateX(-50%)'; mouth.style.background = 'transparent'; }
+  if (mover) { mover.style.marginTop = '0px'; }
+  if (imgEl) { imgEl.style.filter = ''; }
+}
+
 function togglePlayPause() {
   if (!currentAudio) return;
   var ppBtn = document.getElementById('audio-pp-btn');
@@ -1159,11 +1356,13 @@ function togglePlayPause() {
     if (ppBtn) ppBtn.textContent = '⏸';
     if (wave)  wave.classList.add('playing');
     setPortraitSpeaking(true);
+    startAmplitudeAnimation(currentAudio);
   } else {
     currentAudio.pause();
     if (ppBtn) ppBtn.textContent = '▶';
     if (wave)  wave.classList.remove('playing');
     setPortraitSpeaking(false);
+    stopAmplitudeAnimation();
   }
 }
 
@@ -1172,6 +1371,7 @@ function stopAudio() {
     currentAudio.pause();
     currentAudio = null;
   }
+  stopAmplitudeAnimation();
   setPortraitSpeaking(false);
   var wave    = document.getElementById('audio-wave');
   var player  = document.getElementById('audio-player');
