@@ -1098,13 +1098,40 @@ var LANG_LABELS = {
 // ── PORTRAIT ANIMATION ──
 var blinkTimer = null;
 
+var portraitVariants = { closed: '', mid: '', open: '', hasVariants: false };
+var currentMouthState = 'closed';
+
 function initPortrait(persona) {
   var img  = document.getElementById('portrait-animated');
   var name = document.getElementById('portrait-name');
-  if (img)  { img.src = persona.portrait; img.alt = persona.name; }
+
+  portraitVariants.closed = persona.portraitClosed || persona.portrait;
+  portraitVariants.mid    = persona.portraitMid;
+  portraitVariants.open   = persona.portraitOpen;
+  portraitVariants.hasVariants = !!(persona.portraitMid && persona.portraitOpen);
+
+  if (img)  { img.src = portraitVariants.closed; img.alt = persona.name; }
   if (name) name.textContent = persona.name;
+  currentMouthState = 'closed';
+
+  // Preload variants so swap is instant
+  if (portraitVariants.hasVariants) {
+    var pre1 = new Image(); pre1.src = portraitVariants.mid;
+    var pre2 = new Image(); pre2.src = portraitVariants.open;
+  }
+
   setPortraitSpeaking(false);
   startBlinking();
+}
+
+function setMouthState(state) {
+  if (!portraitVariants.hasVariants) return;
+  if (state === currentMouthState) return;
+  var img = document.getElementById('portrait-animated');
+  if (!img) return;
+  var src = portraitVariants[state] || portraitVariants.closed;
+  img.src = src;
+  currentMouthState = state;
 }
 
 function setPortraitSpeaking(speaking) {
@@ -1303,8 +1330,13 @@ function startAmplitudeAnimation(audioEl) {
       smoothAmp = smoothAmp * 0.6 + raw * 0.4;
       var amp = smoothAmp;
 
-      // Mouth — subtle open/close shadow
-      if (mouth) {
+      // Mouth — swap between variants if available, else use shadow overlay
+      if (portraitVariants.hasVariants) {
+        if      (amp > 0.18) setMouthState('open');
+        else if (amp > 0.06) setMouthState('mid');
+        else                 setMouthState('closed');
+        if (mouth) { mouth.style.background = 'transparent'; mouth.style.transform = 'translateX(-50%)'; }
+      } else if (mouth) {
         var scaleY = 1 + amp * 2.5;
         var scaleX = 1 + amp * 0.8;
         mouth.style.transform = 'translateX(-50%) scaleY(' + scaleY + ') scaleX(' + scaleX + ')';
@@ -1345,6 +1377,7 @@ function stopAmplitudeAnimation() {
   if (mouth) { mouth.style.transform = 'translateX(-50%)'; mouth.style.background = 'transparent'; }
   if (mover) { mover.style.marginTop = '0px'; }
   if (imgEl) { imgEl.style.filter = ''; }
+  setMouthState('closed');
 }
 
 function togglePlayPause() {
@@ -1386,18 +1419,21 @@ function stopAudio() {
 // ── PERSONA MAPPING ──
 function mapPersona(p) {
   return {
-    id:          p.PersonaID,
-    name:        p.DisplayName,
-    title:       p.Title,
-    era:         p.Era,
-    eraLabel:    p.EraLabel,
-    tag:         p.Tag,
-    tagClass:    p.TagClass,
-    desc:        p.Description,
-    intro:       p.IntroMessage,
-    portrait:    p.PortraitURL || "",
-    system:      p.SystemPrompt,
-    voiceId:     p.VoiceID || "",
+    id:             p.PersonaID,
+    name:           p.DisplayName,
+    title:          p.Title,
+    era:            p.Era,
+    eraLabel:       p.EraLabel,
+    tag:            p.Tag,
+    tagClass:       p.TagClass,
+    desc:           p.Description,
+    intro:          p.IntroMessage,
+    portrait:       p.PortraitURL || "",
+    portraitClosed: p.PortraitClosed || p.PortraitURL || "",
+    portraitMid:    p.PortraitMid    || "",
+    portraitOpen:   p.PortraitOpen   || "",
+    system:         p.SystemPrompt,
+    voiceId:        p.VoiceID || "",
     suggestions: (p.SuggestedQ_EN && p.SuggestedQ_EN.length) ? p.SuggestedQ_EN : [],
     suggestionsAll: {
       en: p.SuggestedQ_EN || [],
