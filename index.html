@@ -1,948 +1,321 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Voices of History</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400;1,600&family=IM+Fell+English:ital@0;1&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --parchment: #f4ead5;
-    --parchment-dark: #e8d9b8;
-    --parchment-mid: #ede0c4;
-    --ink: #1a1208;
-    --ink-faded: #3d2e18;
-    --sepia: #6b4f2a;
-    --sepia-light: #9b7a4a;
-    --gold: #c9973a;
-    --gold-light: #e8c070;
-    --red-wax: #8b2020;
-    --blue-deep: #1a2e4a;
-    --blue-faded: #2d4a6b;
-    --shadow: rgba(26,18,8,0.25);
+// ============================================================
+// VOICES OF HISTORY — GAS Backend
+// Sheet ID: 1uxKhmVqt7rI_YH4MhL4go600EsevI-91HYDUYne8Xm4
+// Tabs: Personas, Conversations
+// ============================================================
+
+var SHEET_ID = "1uxKhmVqt7rI_YH4MhL4go600EsevI-91HYDUYne8Xm4";
+var PERSONAS_TAB = "Personas";
+var LOG_TAB = "Conversations";
+var CLAUDE_API_URL = "https://api.anthropic.com/v1/messages";
+var ELEVENLABS_API_URL = "https://api.elevenlabs.io/v1/text-to-speech/";
+var CLAUDE_MODEL = "claude-sonnet-4-20250514";
+var ELEVENLABS_MODEL = "eleven_multilingual_v2";
+var MAX_TOKENS = 1000;
+
+// ============================================================
+// ENTRY POINTS
+// ============================================================
+
+function doGet(e) {
+  var action = e.parameter.action;
+
+  if (action === "personas") {
+    return handleGetPersonas();
   }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background-color: #1a1208;
-    background-image:
-      radial-gradient(ellipse at 20% 50%, rgba(139,80,20,0.15) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(26,46,74,0.2) 0%, transparent 50%),
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-    font-family: 'Crimson Pro', serif;
-    min-height: 100vh;
-    color: var(--ink);
-    overflow-x: hidden;
+  if (action === "chat") {
+    var body = {
+      personaId: e.parameter.personaId,
+      language:  e.parameter.language || "en",
+      audio:     e.parameter.audio === "true",
+      messages:  JSON.parse(decodeURIComponent(e.parameter.messages || "[]"))
+    };
+    return handleChat(body);
   }
 
-  /* ── SCREENS ── */
-  .screen { display: none; min-height: 100vh; }
-  .screen.active { display: flex; flex-direction: column; }
+  return makeResponse({ error: "Unknown action" });
+}
 
-  /* ── SELECT SCREEN ── */
-  #select-screen {
-    align-items: center;
-    justify-content: flex-start;
-    padding: 48px 24px 40px;
-    position: relative;
+function doPost(e) {
+  var body;
+  try {
+    body = JSON.parse(e.postData.contents);
+  } catch (err) {
+    return makeResponse({ error: "Invalid JSON body" });
   }
-
-  .masthead {
-    text-align: center;
-    margin-bottom: 52px;
-    position: relative;
+  if (body.action === "chat") {
+    return handleChat(body);
   }
-
-  .masthead-rule {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 20px;
-    justify-content: center;
-  }
-
-  .masthead-rule span {
-    color: var(--gold);
-    font-size: 22px;
-    line-height: 1;
-    opacity: 0.7;
-  }
-
-  .masthead-line {
-    flex: 1;
-    max-width: 140px;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  }
-
-  .masthead h1 {
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 300;
-    font-size: clamp(42px, 8vw, 72px);
-    letter-spacing: 0.12em;
-    line-height: 0.9;
-    color: var(--parchment);
-    text-transform: uppercase;
-    text-shadow: 0 2px 20px rgba(201,151,58,0.3);
-  }
-
-  .masthead h1 em {
-    font-style: italic;
-    font-weight: 300;
-    color: var(--gold-light);
-    display: block;
-    font-size: 0.7em;
-    letter-spacing: 0.25em;
-    margin-top: 8px;
-  }
-
-  .masthead-sub {
-    font-family: 'Crimson Pro', serif;
-    font-style: italic;
-    font-size: 17px;
-    color: var(--sepia-light);
-    margin-top: 18px;
-    letter-spacing: 0.04em;
-    line-height: 1.5;
-    max-width: 520px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .persona-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
-    width: 100%;
-    max-width: 920px;
-  }
-
-  @media (max-width: 700px) {
-    .persona-grid { grid-template-columns: 1fr; max-width: 380px; }
-  }
-  @media (min-width: 701px) and (max-width: 900px) {
-    .persona-grid { grid-template-columns: repeat(2, 1fr); max-width: 600px; }
-  }
-
-  .persona-card {
-    background: var(--parchment);
-    background-image:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
-    border: 1px solid var(--sepia-light);
-    border-top: 3px solid var(--gold);
-    padding: 28px 22px 24px;
-    cursor: pointer;
-    position: relative;
-    transition: transform 0.25s ease, box-shadow 0.25s ease;
-    box-shadow: 4px 4px 20px var(--shadow), inset 0 1px 0 rgba(255,255,255,0.4);
-    animation: cardReveal 0.6s ease both;
-    overflow: hidden;
-  }
-
-  .persona-card:nth-child(1) { animation-delay: 0.1s; }
-  .persona-card:nth-child(2) { animation-delay: 0.2s; }
-  .persona-card:nth-child(3) { animation-delay: 0.3s; }
-  .persona-card:nth-child(4) { animation-delay: 0.4s; }
-  .persona-card:nth-child(5) { animation-delay: 0.5s; }
-  .persona-card:nth-child(6) { animation-delay: 0.6s; }
-
-  @keyframes cardReveal {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .persona-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    background: var(--gold);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.3s ease;
-  }
-
-  .persona-card:hover {
-    transform: translateY(-4px) rotate(-0.3deg);
-    box-shadow: 8px 12px 32px var(--shadow);
-  }
-
-  .persona-card:hover::before { transform: scaleX(1); }
-
-  /* ── AVATARS ── */
-  .card-avatar-wrap {
-    display: flex;
-    align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 14px;
-  }
-
-  .avatar {
-    border-radius: 50%;
-    object-fit: cover;
-    object-position: top center;
-    flex-shrink: 0;
-    border: 2px solid var(--gold);
-    background: var(--parchment-dark);
-    filter: sepia(30%) contrast(1.05);
-  }
-
-  .avatar-card {
-    width: 64px;
-    height: 64px;
-    box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
-  }
-
-  .avatar-header {
-    width: 44px;
-    height: 44px;
-    border-color: rgba(201,151,58,0.6);
-  }
-
-  .avatar-bubble {
-    width: 34px;
-    height: 34px;
-    border-width: 1px;
-    flex-shrink: 0;
-    margin-top: 2px;
-  }
-
-  .avatar-fallback {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--parchment-dark);
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 700;
-    color: var(--sepia);
-    font-size: 20px;
-  }
-
-  .avatar-fallback.avatar-bubble { font-size: 13px; }
-
-  .card-text-block { flex: 1; min-width: 0; }
-
-  .card-era {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--sepia-light);
-    margin-bottom: 10px;
-  }
-
-  .card-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 700;
-    font-size: 26px;
-    line-height: 1.1;
-    color: var(--ink);
-    margin-bottom: 4px;
-  }
-
-  .card-title {
-    font-family: 'Crimson Pro', serif;
-    font-style: italic;
-    font-size: 14px;
-    color: var(--sepia);
-    margin-bottom: 14px;
-    line-height: 1.3;
-  }
-
-  .card-desc {
-    font-family: 'Crimson Pro', serif;
-    font-size: 14.5px;
-    line-height: 1.6;
-    color: var(--ink-faded);
-    margin-bottom: 16px;
-  }
-
-  .card-tag {
-    display: inline-block;
-    font-size: 10px;
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    border: 1px solid currentColor;
-    border-radius: 2px;
-  }
-
-  .tag-secular { color: var(--blue-faded); }
-  .tag-religious { color: var(--red-wax); }
-  .tag-zionist { color: var(--sepia); }
-  .tag-biblical { color: #2a6b3a; }
-  .tag-philosophical { color: #5a3a6b; }
-  .tag-labor { color: #4a4a1a; }
-
-  .card-cta {
-    position: absolute;
-    bottom: 18px; right: 18px;
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 20px;
-    color: var(--gold);
-    opacity: 0;
-    transition: opacity 0.2s;
-  }
-  .persona-card:hover .card-cta { opacity: 1; }
-
-  /* ── CHAT SCREEN ── */
-  #chat-screen {
-    background: var(--parchment-mid);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='400' height='400' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
-    flex-direction: column;
-    height: 100vh;
-  }
-
-  .chat-header {
-    background: var(--ink);
-    background-image: linear-gradient(135deg, #1a1208 0%, #2d1e0a 100%);
-    padding: 16px 24px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    border-bottom: 2px solid var(--gold);
-    flex-shrink: 0;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.4);
-  }
-
-  .back-btn {
-    background: none;
-    border: 1px solid rgba(201,151,58,0.4);
-    color: var(--gold);
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 18px;
-    padding: 6px 12px;
-    cursor: pointer;
-    border-radius: 2px;
-    transition: all 0.2s;
-    flex-shrink: 0;
-  }
-  .back-btn:hover { background: rgba(201,151,58,0.1); border-color: var(--gold); }
-
-  .chat-persona-info { flex: 1; min-width: 0; }
-
-  .chat-persona-name {
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 700;
-    font-size: 24px;
-    color: var(--parchment);
-    line-height: 1.1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .chat-persona-tagline {
-    font-family: 'Crimson Pro', serif;
-    font-style: italic;
-    font-size: 13px;
-    color: var(--sepia-light);
-    margin-top: 1px;
-  }
-
-  .chat-era-badge {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--gold);
-    border: 1px solid rgba(201,151,58,0.35);
-    padding: 4px 10px;
-    border-radius: 2px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .chat-messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 28px 24px;
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-    scroll-behavior: smooth;
-  }
-
-  .chat-messages::-webkit-scrollbar { width: 6px; }
-  .chat-messages::-webkit-scrollbar-track { background: transparent; }
-  .chat-messages::-webkit-scrollbar-thumb { background: var(--sepia-light); border-radius: 3px; }
-
-  .message {
-    max-width: 75%;
-    animation: msgIn 0.3s ease both;
-  }
-
-  @keyframes msgIn {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .message.user { align-self: flex-end; }
-  .message.persona { align-self: flex-start; }
-
-  .persona-msg-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-  }
-
-  .persona-msg-row .msg-content { flex: 1; min-width: 0; }
-
-  .msg-label {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-    padding-left: 2px;
-  }
-
-  .message.user .msg-label { color: var(--blue-faded); text-align: right; }
-  .message.persona .msg-label { color: var(--sepia); }
-
-  .msg-bubble {
-    padding: 14px 18px;
-    border-radius: 2px;
-    line-height: 1.7;
-    font-size: 16px;
-    font-family: 'Crimson Pro', serif;
-  }
-
-  .message.user .msg-bubble {
-    background: var(--blue-deep);
-    color: var(--parchment);
-    border-left: none;
-    border-right: 3px solid var(--gold);
-    box-shadow: -3px 3px 12px rgba(0,0,0,0.2);
-  }
-
-  .message.persona .msg-bubble {
-    background: #fdf5e2;
-    color: var(--ink);
-    border-left: 3px solid var(--gold);
-    box-shadow: 3px 3px 12px rgba(0,0,0,0.12);
-    position: relative;
-  }
-
-  .message.persona .msg-bubble::before {
-    content: '\201C';
-    position: absolute;
-    top: -4px; left: 8px;
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 48px;
-    color: var(--gold-light);
-    opacity: 0.4;
-    line-height: 1;
-    pointer-events: none;
-  }
-
-  .typing-indicator { display: flex; gap: 5px; align-items: center; padding: 18px 18px; }
-  .typing-dot {
-    width: 7px; height: 7px;
-    background: var(--sepia-light);
-    border-radius: 50%;
-    animation: typingBounce 1.2s infinite ease-in-out;
-  }
-  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-  @keyframes typingBounce {
-    0%, 60%, 100% { transform: translateY(0); }
-    30% { transform: translateY(-6px); }
-  }
-
-  .chat-input-area {
-    flex-shrink: 0;
-    padding: 16px 24px 20px;
-    background: var(--parchment-dark);
-    border-top: 1px solid var(--sepia-light);
-    box-shadow: 0 -2px 12px rgba(0,0,0,0.1);
-  }
-
-  .suggested-questions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-  }
-
-  .sq-btn {
-    background: none;
-    border: 1px solid var(--sepia-light);
-    color: var(--sepia);
-    font-family: 'Crimson Pro', serif;
-    font-style: italic;
-    font-size: 13px;
-    padding: 5px 12px;
-    border-radius: 2px;
-    cursor: pointer;
-    transition: all 0.2s;
-    line-height: 1.4;
-  }
-  .sq-btn:hover {
-    background: var(--sepia-light);
-    color: var(--parchment);
-    border-color: var(--sepia-light);
-  }
-
-  .input-row {
-    display: flex;
-    gap: 10px;
-    align-items: flex-end;
-  }
-
-  #chat-input {
-    flex: 1;
-    background: #fdf5e2;
-    border: 1px solid var(--sepia-light);
-    border-radius: 2px;
-    padding: 12px 16px;
-    font-family: 'Crimson Pro', serif;
-    font-size: 16px;
-    color: var(--ink);
-    resize: none;
-    min-height: 48px;
-    max-height: 120px;
-    outline: none;
-    transition: border-color 0.2s;
-    line-height: 1.5;
-  }
-  #chat-input:focus { border-color: var(--gold); }
-  #chat-input::placeholder { color: var(--sepia-light); font-style: italic; }
-
-  #send-btn {
-    background: var(--gold);
-    border: none;
-    color: var(--ink);
-    padding: 0 20px;
-    height: 48px;
-    font-family: 'Cormorant Garamond', serif;
-    font-weight: 700;
-    font-size: 14px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    cursor: pointer;
-    border-radius: 2px;
-    transition: background 0.2s;
-    flex-shrink: 0;
-  }
-  #send-btn:hover { background: var(--gold-light); }
-  #send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* ── DISCLAIMER ── */
-  .disclaimer {
-    text-align: center;
-    font-family: 'Crimson Pro', serif;
-    font-style: italic;
-    font-size: 12px;
-    color: var(--sepia-light);
-    margin-top: 8px;
-    opacity: 0.8;
-  }
-
-  .intro-message {
-    align-self: flex-start;
-    max-width: 75%;
-    margin-bottom: 4px;
-  }
-
-  .intro-bubble {
-    background: linear-gradient(135deg, #1a2e4a, #1a3a26);
-    color: var(--parchment);
-    padding: 16px 20px;
-    border-radius: 2px;
-    font-family: 'Crimson Pro', serif;
-    font-style: italic;
-    font-size: 15px;
-    line-height: 1.65;
-    border-left: 3px solid var(--gold);
-    box-shadow: 3px 3px 12px rgba(0,0,0,0.2);
-  }
-
-  .intro-label {
-    font-family: 'Cormorant Garamond', serif;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.18em;
-    text-transform: uppercase;
-    color: var(--sepia-light);
-    margin-bottom: 6px;
-  }
-
-  /* ── STAR ── */
-  .star-sep {
-    text-align: center;
-    color: var(--gold);
-    font-size: 14px;
-    letter-spacing: 8px;
-    opacity: 0.5;
-    margin: 4px 0;
-    font-family: serif;
-  }
-</style>
-</head>
-<body>
-
-<!-- ══════════════════ SELECT SCREEN ══════════════════ -->
-<div id="select-screen" class="screen active">
-  <div class="masthead">
-    <div class="masthead-rule">
-      <div class="masthead-line"></div>
-      <span>✦</span>
-      <div class="masthead-line"></div>
-    </div>
-    <h1>Voices of<em>History</em></h1>
-    <p class="masthead-sub">Speak with the luminaries who shaped the Jewish people and the Land of Israel. Each voice carries the weight of their age.</p>
-  </div>
-
-  <div class="persona-grid" id="persona-grid"></div>
-
-  <p class="disclaimer" style="margin-top:28px; color: rgba(244,234,213,0.35);">
-    These are AI-simulated voices — educated interpretations, not transcripts.
-  </p>
-</div>
-
-<!-- ══════════════════ CHAT SCREEN ══════════════════ -->
-<div id="chat-screen" class="screen">
-  <div class="chat-header">
-    <button class="back-btn" onclick="goBack()">← All</button>
-    <div id="header-avatar-wrap"></div>
-    <div class="chat-persona-info">
-      <div class="chat-persona-name" id="chat-name"></div>
-      <div class="chat-persona-tagline" id="chat-tagline"></div>
-    </div>
-    <div class="chat-era-badge" id="chat-era"></div>
-  </div>
-
-  <div class="chat-messages" id="chat-messages">
-    <!-- intro injected by JS -->
-  </div>
-
-  <div class="chat-input-area">
-    <div class="suggested-questions" id="suggested-questions"></div>
-    <div class="input-row">
-      <textarea id="chat-input" rows="1" placeholder="Ask your question…"></textarea>
-      <button id="send-btn" onclick="sendMessage()">Ask</button>
-    </div>
-    <p class="disclaimer">AI-simulated voice · Not a historical transcript</p>
-  </div>
-</div>
-
-<script>
-var GAS_URL = "https://script.google.com/macros/s/AKfycbxzA-IL5rRYX_s9K4nji4PBedV6zupMKZDu9vmgydmAkD_vUgyZGbZjsYCIqSsm_Wst/exec";
-var PERSONAS = [];
-var currentLanguage = "en";
-
-// Map GAS persona fields to the internal shape the UI expects
-function mapPersona(p) {
-  return {
-    id:          p.PersonaID,
-    name:        p.DisplayName,
-    title:       p.Title,
-    era:         p.Era,
-    eraLabel:    p.EraLabel,
-    tag:         p.Tag,
-    tagClass:    p.TagClass,
-    desc:        p.Description,
-    intro:       p.IntroMessage,
-    portrait:    p.PortraitURL || "",
-    system:      p.SystemPrompt,
-    suggestions: getSuggestions(p, "en"),
-    suggestionsAll: {
-      en: p.SuggestedQ_EN || [],
-      he: p.SuggestedQ_HE || [],
-      fr: p.SuggestedQ_FR || [],
-      ru: p.SuggestedQ_RU || [],
-      es: p.SuggestedQ_ES || []
+  return makeResponse({ error: "Unknown action" });
+}
+
+// ============================================================
+// GET PERSONAS
+// ============================================================
+
+function handleGetPersonas() {
+  try {
+    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(PERSONAS_TAB);
+    var data = sheet.getDataRange().getValues();
+
+    if (data.length < 2) {
+      return makeResponse({ personas: [] });
     }
-  };
-}
 
-function getSuggestions(p, lang) {
-  var key = "SuggestedQ_" + lang.toUpperCase();
-  var arr = p[key];
-  if (arr && arr.length) return arr;
-  return p.SuggestedQ_EN || [];
-}
+    var headers = data[0];
+    var personas = [];
 
-function loadPersonas() {
-  var grid = document.getElementById('persona-grid');
-  grid.innerHTML = '<div style="color:rgba(244,234,213,0.4);font-family:\'Crimson Pro\',serif;font-style:italic;font-size:16px;text-align:center;padding:40px;">Loading voices…</div>';
+    for (var i = 1; i < data.length; i++) {
+      var row = data[i];
+      var persona = {};
 
-  fetch(GAS_URL + "?action=personas")
-    .then(function(res) { return res.json(); })
-    .then(function(data) {
-      if (!data.personas || !data.personas.length) {
-        grid.innerHTML = '<div style="color:#c9973a;font-family:\'Crimson Pro\',serif;text-align:center;padding:40px;">No personas found. Check the Sheet.</div>';
-        return;
+      for (var j = 0; j < headers.length; j++) {
+        persona[headers[j]] = row[j];
       }
-      PERSONAS = data.personas.map(mapPersona);
-      renderPersonaGrid();
-    })
-    .catch(function(err) {
-      grid.innerHTML = '<div style="color:#c9973a;font-family:\'Crimson Pro\',serif;text-align:center;padding:40px;">Could not load voices. Please try again.</div>';
-    });
+
+      var isActive = persona.Active === true || persona.Active === "TRUE" || persona.Active === "Yes";
+      if (isActive) {
+        persona.SuggestedQ_EN = parsePiped(persona.SuggestedQ_EN);
+        persona.SuggestedQ_HE = parsePiped(persona.SuggestedQ_HE);
+        persona.SuggestedQ_FR = parsePiped(persona.SuggestedQ_FR);
+        persona.SuggestedQ_RU = parsePiped(persona.SuggestedQ_RU);
+        persona.SuggestedQ_ES = parsePiped(persona.SuggestedQ_ES);
+        personas.push(persona);
+      }
+    }
+
+    return makeResponse({ personas: personas });
+
+  } catch (err) {
+    logError("handleGetPersonas", err);
+    return makeResponse({ error: "Failed to load personas: " + err.message });
+  }
 }
 
-// Personas loaded dynamically from GAS — see loadPersonas()
+// ============================================================
+// CHAT — calls Claude, optionally calls ElevenLabs
+// ============================================================
 
-var currentPersona = null;
-var conversationHistory = [];
+function handleChat(body) {
+  var personaId = body.personaId;
+  var messages  = body.messages;
+  var language  = body.language || "en";
+  var wantAudio = body.audio === true;
 
-function makeAvatar(src, cssClass, initials) {
-  var img = document.createElement('img');
-  img.className = 'avatar ' + cssClass;
-  img.alt = initials;
-  img.src = src;
-  img.onerror = function() {
-    var fb = document.createElement('div');
-    fb.className = 'avatar avatar-fallback ' + cssClass;
-    fb.textContent = initials;
-    img.parentNode.replaceChild(fb, img);
-  };
-  return img;
-}
-
-function getInitials(name) {
-  var parts = name.split(' ');
-  return parts.length >= 2 ? parts[0][0] + parts[parts.length - 1][0] : name[0];
-}
-
-function renderPersonaGrid() {
-  var grid = document.getElementById('persona-grid');
-  grid.innerHTML = '';
-  PERSONAS.forEach(function(p) {
-    var card = document.createElement('div');
-    card.className = 'persona-card';
-
-    var avatarWrap = document.createElement('div');
-    avatarWrap.className = 'card-avatar-wrap';
-
-    var av = makeAvatar(p.portrait, 'avatar-card', getInitials(p.name));
-    var textBlock = document.createElement('div');
-    textBlock.className = 'card-text-block';
-    textBlock.innerHTML =
-      '<div class="card-name">' + p.name + '</div>' +
-      '<div class="card-title">' + p.title + '</div>';
-
-    avatarWrap.appendChild(av);
-    avatarWrap.appendChild(textBlock);
-
-    var eraDiv = document.createElement('div');
-    eraDiv.className = 'card-era';
-    eraDiv.textContent = p.eraLabel + ' · ' + p.era;
-
-    var descDiv = document.createElement('div');
-    descDiv.className = 'card-desc';
-    descDiv.textContent = p.desc;
-
-    var tagSpan = document.createElement('span');
-    tagSpan.className = 'card-tag ' + p.tagClass;
-    tagSpan.textContent = p.tag;
-
-    var cta = document.createElement('div');
-    cta.className = 'card-cta';
-    cta.textContent = '→';
-
-    card.appendChild(eraDiv);
-    card.appendChild(avatarWrap);
-    card.appendChild(descDiv);
-    card.appendChild(tagSpan);
-    card.appendChild(cta);
-
-    card.addEventListener('click', function() { openChat(p); });
-    grid.appendChild(card);
-  });
-}
-
-function openChat(persona) {
-  currentPersona = persona;
-  conversationHistory = [];
-
-  document.getElementById('chat-name').textContent = persona.name;
-  document.getElementById('chat-tagline').textContent = persona.title + ' · ' + persona.era;
-  document.getElementById('chat-era').textContent = persona.eraLabel;
-
-  // Header avatar
-  var headerAvWrap = document.getElementById('header-avatar-wrap');
-  headerAvWrap.innerHTML = '';
-  headerAvWrap.appendChild(makeAvatar(persona.portrait, 'avatar-header', getInitials(persona.name)));
-
-  var msgs = document.getElementById('chat-messages');
-  msgs.innerHTML =
-    '<div class="intro-message">' +
-      '<div class="intro-label">System</div>' +
-      '<div class="intro-bubble">You are speaking with an AI interpretation of ' + persona.name + '. This voice is grounded in historical record but is a simulation — not a transcript.</div>' +
-    '</div>' +
-    '<div class="star-sep">✦ ✦ ✦</div>';
-
-  // Render intro message
-  appendMessage('persona', persona.intro, persona.name);
-
-  // Suggested questions — language aware
-  var sq = document.getElementById('suggested-questions');
-  sq.innerHTML = '';
-  sq.style.display = '';
-  var questions = (persona.suggestionsAll && persona.suggestionsAll[currentLanguage] && persona.suggestionsAll[currentLanguage].length)
-    ? persona.suggestionsAll[currentLanguage]
-    : persona.suggestions;
-  questions.forEach(function(q) {
-    var btn = document.createElement('button');
-    btn.className = 'sq-btn';
-    btn.textContent = q;
-    btn.addEventListener('click', function() { sendSuggested(q); });
-    sq.appendChild(btn);
-  });
-
-  document.getElementById('select-screen').classList.remove('active');
-  document.getElementById('chat-screen').classList.add('active');
-  document.getElementById('chat-input').focus();
-}
-
-function goBack() {
-  document.getElementById('chat-screen').classList.remove('active');
-  document.getElementById('select-screen').classList.add('active');
-  currentPersona = null;
-  conversationHistory = [];
-}
-
-function appendMessage(role, text, label) {
-  var msgs = document.getElementById('chat-messages');
-  var wrapper = document.createElement('div');
-  wrapper.className = 'message ' + role;
-
-  var lbl = document.createElement('div');
-  lbl.className = 'msg-label';
-  lbl.textContent = role === 'user' ? 'You' : (label || currentPersona.name);
-
-  var bubble = document.createElement('div');
-  bubble.className = 'msg-bubble';
-  bubble.textContent = text;
-
-  if (role === 'persona') {
-    var row = document.createElement('div');
-    row.className = 'persona-msg-row';
-    var av = makeAvatar(currentPersona.portrait, 'avatar-bubble', getInitials(currentPersona.name));
-    var msgContent = document.createElement('div');
-    msgContent.className = 'msg-content';
-    msgContent.appendChild(lbl);
-    msgContent.appendChild(bubble);
-    row.appendChild(av);
-    row.appendChild(msgContent);
-    wrapper.appendChild(row);
-  } else {
-    wrapper.appendChild(lbl);
-    wrapper.appendChild(bubble);
+  if (!personaId || !messages || !messages.length) {
+    return makeResponse({ error: "Missing personaId or messages" });
   }
 
-  msgs.appendChild(wrapper);
-  msgs.scrollTop = msgs.scrollHeight;
-  return wrapper;
-}
+  var anthropicKey = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
+  if (!anthropicKey) {
+    return makeResponse({ error: "Anthropic API key not configured" });
+  }
 
-function showTyping() {
-  var msgs = document.getElementById('chat-messages');
-  var wrapper = document.createElement('div');
-  wrapper.className = 'message persona';
-  wrapper.id = 'typing-indicator';
+  var personaRow = getPersonaRow(personaId);
+  if (!personaRow) {
+    return makeResponse({ error: "Persona not found: " + personaId });
+  }
 
-  var row = document.createElement('div');
-  row.className = 'persona-msg-row';
+  var systemPrompt = personaRow.SystemPrompt + "\n\n" + getLanguageInstruction(language);
 
-  var av = makeAvatar(currentPersona.portrait, 'avatar-bubble', getInitials(currentPersona.name));
+  // ── Call Claude ──
+  var claudePayload = {
+    model: CLAUDE_MODEL,
+    max_tokens: MAX_TOKENS,
+    system: systemPrompt,
+    messages: messages
+  };
 
-  var msgContent = document.createElement('div');
-  msgContent.className = 'msg-content';
+  var claudeOptions = {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      "x-api-key": anthropicKey,
+      "anthropic-version": "2023-06-01"
+    },
+    payload: JSON.stringify(claudePayload),
+    muteHttpExceptions: true
+  };
 
-  var lbl = document.createElement('div');
-  lbl.className = 'msg-label';
-  lbl.textContent = currentPersona.name;
-
-  var bubble = document.createElement('div');
-  bubble.className = 'msg-bubble typing-indicator';
-  bubble.innerHTML = '<div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>';
-
-  msgContent.appendChild(lbl);
-  msgContent.appendChild(bubble);
-  row.appendChild(av);
-  row.appendChild(msgContent);
-  wrapper.appendChild(row);
-
-  msgs.appendChild(wrapper);
-  msgs.scrollTop = msgs.scrollHeight;
-}
-
-function removeTyping() {
-  var t = document.getElementById('typing-indicator');
-  if (t) t.remove();
-}
-
-function sendSuggested(q) {
-  document.getElementById('chat-input').value = q;
-  sendMessage();
-}
-
-function sendMessage() {
-  var input = document.getElementById('chat-input');
-  var text = input.value.trim();
-  if (!text || !currentPersona) return;
-
-  var sendBtn = document.getElementById('send-btn');
-  sendBtn.disabled = true;
-
-  document.getElementById('suggested-questions').style.display = 'none';
-
-  appendMessage('user', text);
-  conversationHistory.push({ role: 'user', content: text });
-  input.value = '';
-  input.style.height = 'auto';
-
-  showTyping();
-
-  var messages = conversationHistory.slice();
-  var chatURL = GAS_URL
-    + "?action=chat"
-    + "&personaId=" + encodeURIComponent(currentPersona.id)
-    + "&language=" + encodeURIComponent(currentLanguage)
-    + "&messages=" + encodeURIComponent(JSON.stringify(messages));
-
-  fetch(chatURL)
-  .then(function(res) { return res.json(); })
-  .then(function(data) {
-    removeTyping();
-    var reply = data.reply || 'Forgive me — the words do not come easily in this moment. Try again.';
-    conversationHistory.push({ role: 'assistant', content: reply });
-    appendMessage('persona', reply);
-    sendBtn.disabled = false;
-  })
-  .catch(function(err) {
-    removeTyping();
-    appendMessage('persona', 'Something has gone quiet in the ether. Try your question again.');
-    sendBtn.disabled = false;
-  });
-}
-
-// Auto-resize textarea
-document.addEventListener('DOMContentLoaded', function() {
-  var ta = document.getElementById('chat-input');
-  ta.addEventListener('input', function() {
-    this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-  });
-  ta.addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
+  try {
+    var claudeResp = UrlFetchApp.fetch(CLAUDE_API_URL, claudeOptions);
+    if (claudeResp.getResponseCode() !== 200) {
+      logError("handleChat", "Claude " + claudeResp.getResponseCode() + ": " + claudeResp.getContentText());
+      return makeResponse({ error: "Claude API error" });
     }
+
+    var claudeData = JSON.parse(claudeResp.getContentText());
+    var reply = claudeData.content[0].text;
+
+    logConversation(personaId, messages[messages.length - 1].content, reply, language);
+
+    // ── Optionally call ElevenLabs ──
+    var audioB64 = null;
+    if (wantAudio) {
+      audioB64 = getElevenLabsAudio(reply, personaRow.VoiceID, language);
+    }
+
+    var result = { reply: reply };
+    if (audioB64) {
+      result.audio = audioB64;
+    }
+    return makeResponse(result);
+
+  } catch (err) {
+    logError("handleChat", err);
+    return makeResponse({ error: "Request failed: " + err.message });
+  }
+}
+
+// ============================================================
+// ELEVENLABS TTS
+// Returns base64-encoded MP3 or null on failure
+// ============================================================
+
+function getElevenLabsAudio(text, voiceId, language) {
+  if (!voiceId) return null;
+
+  var elKey = PropertiesService.getScriptProperties().getProperty("ELEVENLABS_API_KEY");
+  if (!elKey) return null;
+
+  // Trim text to 2500 chars max to control cost and latency
+  var trimmed = text.length > 2500 ? text.substring(0, 2497) + "..." : text;
+
+  var payload = {
+    text: trimmed,
+    model_id: ELEVENLABS_MODEL,
+    voice_settings: {
+      stability: 0.5,
+      similarity_boost: 0.75,
+      style: 0.3,
+      use_speaker_boost: true
+    }
+  };
+
+  var options = {
+    method: "post",
+    contentType: "application/json",
+    headers: {
+      "xi-api-key": elKey
+    },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+
+  try {
+    var resp = UrlFetchApp.fetch(ELEVENLABS_API_URL + voiceId, options);
+    if (resp.getResponseCode() !== 200) {
+      logError("getElevenLabsAudio", "ElevenLabs " + resp.getResponseCode() + ": " + resp.getContentText().substring(0, 200));
+      return null;
+    }
+    var bytes = resp.getContent();
+    return Utilities.base64Encode(bytes);
+  } catch (err) {
+    logError("getElevenLabsAudio", err);
+    return null;
+  }
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+function getPersonaRow(personaId) {
+  var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(PERSONAS_TAB);
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0];
+
+  var idCol     = headers.indexOf("PersonaID");
+  var activeCol = headers.indexOf("Active");
+
+  for (var i = 1; i < data.length; i++) {
+    var row = data[i];
+    var isActive = row[activeCol] === true || row[activeCol] === "TRUE" || row[activeCol] === "Yes";
+    if (row[idCol] === personaId && isActive) {
+      var obj = {};
+      for (var j = 0; j < headers.length; j++) {
+        obj[headers[j]] = row[j];
+      }
+      return obj;
+    }
+  }
+  return null;
+}
+
+function getLanguageInstruction(lang) {
+  var instructions = {
+    "en": "Respond in English.",
+    "he": "השב בעברית. כתוב בעברית תקינה ומלאה.",
+    "fr": "Réponds en français.",
+    "ru": "Отвечай на русском языке.",
+    "es": "Responde en español."
+  };
+  return instructions[lang] || "Respond in English.";
+}
+
+function parsePiped(val) {
+  if (!val || val === "") return [];
+  return String(val).split("|").map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+}
+
+function logConversation(personaId, userMsg, personaReply, language) {
+  try {
+    var sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(LOG_TAB);
+    sheet.appendRow([new Date(), personaId, userMsg, personaReply, language]);
+  } catch (err) {
+    logError("logConversation", err);
+  }
+}
+
+function logError(context, err) {
+  try {
+    Logger.log("[ERROR] " + context + ": " + (err.message || err));
+  } catch(e) {}
+}
+
+function makeResponse(data) {
+  var output = ContentService.createTextOutput(JSON.stringify(data));
+  output.setMimeType(ContentService.MimeType.JSON);
+  return output;
+}
+
+// ============================================================
+// TEST FUNCTIONS
+// ============================================================
+
+function testGetPersonas() {
+  var result = handleGetPersonas();
+  Logger.log(result.getContent());
+}
+
+function testChat() {
+  var result = handleChat({
+    action: "chat",
+    personaId: "herzl",
+    language: "en",
+    audio: false,
+    messages: [{ role: "user", content: "What drove you to create the Zionist movement?" }]
   });
-  loadPersonas();
-});
-</script>
-</body>
-</html>
+  Logger.log(result.getContent());
+}
+
+function testChatWithAudio() {
+  var result = handleChat({
+    action: "chat",
+    personaId: "herzl",
+    language: "en",
+    audio: true,
+    messages: [{ role: "user", content: "Tell me briefly about Basel." }]
+  });
+  var data = JSON.parse(result.getContent());
+  Logger.log("Reply: " + data.reply);
+  Logger.log("Audio present: " + (data.audio ? "YES, " + data.audio.length + " chars" : "NO"));
+}
+
+function testApiKey() {
+  var key = PropertiesService.getScriptProperties().getProperty("ANTHROPIC_API_KEY");
+  Logger.log(key ? "Anthropic key found: " + key.substring(0, 8) + "..." : "NO ANTHROPIC KEY");
+  var elKey = PropertiesService.getScriptProperties().getProperty("ELEVENLABS_API_KEY");
+  Logger.log(elKey ? "ElevenLabs key found: " + elKey.substring(0, 8) + "..." : "NO ELEVENLABS KEY");
+}
