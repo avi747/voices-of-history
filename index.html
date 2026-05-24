@@ -906,17 +906,13 @@ function sendMessage() {
   showTyping();
 
   var messages = conversationHistory.slice();
+  var chatURL = GAS_URL
+    + "?action=chat"
+    + "&personaId=" + encodeURIComponent(currentPersona.id)
+    + "&language=" + encodeURIComponent(currentLanguage)
+    + "&messages=" + encodeURIComponent(JSON.stringify(messages));
 
-  fetch(GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      action: 'chat',
-      personaId: currentPersona.id,
-      language: currentLanguage,
-      messages: messages
-    })
-  })
+  fetch(chatURL)
   .then(function(res) { return res.json(); })
   .then(function(data) {
     removeTyping();
