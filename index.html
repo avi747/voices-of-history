@@ -1098,40 +1098,52 @@ var LANG_LABELS = {
 // ── PORTRAIT ANIMATION ──
 var blinkTimer = null;
 
-var portraitVariants = { closed: '', mid: '', open: '', hasVariants: false };
-var currentMouthState = 'closed';
+var portraitFrames = [];
+var preloadedFrames = [];
+var currentFrameIdx = 0;
 
 function initPortrait(persona) {
   var img  = document.getElementById('portrait-animated');
   var name = document.getElementById('portrait-name');
 
-  portraitVariants.closed = persona.portraitClosed || persona.portrait;
-  portraitVariants.mid    = persona.portraitMid;
-  portraitVariants.open   = persona.portraitOpen;
-  portraitVariants.hasVariants = !!(persona.portraitMid && persona.portraitOpen);
+  portraitFrames = persona.frames || [];
+  preloadedFrames = [];
 
-  if (img)  { img.src = portraitVariants.closed; img.alt = persona.name; }
+  if (img)  { img.src = portraitFrames[0] || persona.portrait; img.alt = persona.name; }
   if (name) name.textContent = persona.name;
-  currentMouthState = 'closed';
+  currentFrameIdx = 0;
 
-  // Preload variants so swap is instant
-  if (portraitVariants.hasVariants) {
-    var pre1 = new Image(); pre1.src = portraitVariants.mid;
-    var pre2 = new Image(); pre2.src = portraitVariants.open;
+  // Preload all frames so swap is instant
+  if (portraitFrames.length > 1) {
+    for (var i = 0; i < portraitFrames.length; i++) {
+      var pre = new Image();
+      pre.src = portraitFrames[i];
+      preloadedFrames.push(pre);
+    }
   }
 
   setPortraitSpeaking(false);
   startBlinking();
 }
 
-function setMouthState(state) {
-  if (!portraitVariants.hasVariants) return;
-  if (state === currentMouthState) return;
+function setFrameByAmplitude(amp) {
+  if (portraitFrames.length < 2) return;
+  // Map amplitude (0..~0.5) to frame index (0..len-1)
+  // Clamp amp to a sensible range, then scale
+  var clamped = Math.min(amp / 0.35, 1);
+  var idx = Math.round(clamped * (portraitFrames.length - 1));
+  if (idx === currentFrameIdx) return;
   var img = document.getElementById('portrait-animated');
   if (!img) return;
-  var src = portraitVariants[state] || portraitVariants.closed;
-  img.src = src;
-  currentMouthState = state;
+  img.src = portraitFrames[idx];
+  currentFrameIdx = idx;
+}
+
+function resetToFirstFrame() {
+  if (portraitFrames.length < 2) return;
+  var img = document.getElementById('portrait-animated');
+  if (img) img.src = portraitFrames[0];
+  currentFrameIdx = 0;
 }
 
 function setPortraitSpeaking(speaking) {
@@ -1330,11 +1342,9 @@ function startAmplitudeAnimation(audioEl) {
       smoothAmp = smoothAmp * 0.6 + raw * 0.4;
       var amp = smoothAmp;
 
-      // Mouth — swap between variants if available, else use shadow overlay
-      if (portraitVariants.hasVariants) {
-        if      (amp > 0.18) setMouthState('open');
-        else if (amp > 0.06) setMouthState('mid');
-        else                 setMouthState('closed');
+      // Mouth — swap between frame images if multi-frame, else shadow overlay
+      if (portraitFrames.length > 1) {
+        setFrameByAmplitude(amp);
         if (mouth) { mouth.style.background = 'transparent'; mouth.style.transform = 'translateX(-50%)'; }
       } else if (mouth) {
         var scaleY = 1 + amp * 2.5;
@@ -1377,7 +1387,7 @@ function stopAmplitudeAnimation() {
   if (mouth) { mouth.style.transform = 'translateX(-50%)'; mouth.style.background = 'transparent'; }
   if (mover) { mover.style.marginTop = '0px'; }
   if (imgEl) { imgEl.style.filter = ''; }
-  setMouthState('closed');
+  resetToFirstFrame();
 }
 
 function togglePlayPause() {
@@ -1418,22 +1428,34 @@ function stopAudio() {
 
 // ── PERSONA MAPPING ──
 function mapPersona(p) {
+  // Build frames array from PortraitFrame1..PortraitFrame7 columns
+  var frames = [];
+  for (var i = 1; i <= 7; i++) {
+    var v = p["PortraitFrame" + i];
+    if (v && v !== "") frames.push(v);
+  }
+  // Fallback: if no Frame columns, try old 3-column schema or single PortraitURL
+  if (!frames.length) {
+    if (p.PortraitClosed) frames.push(p.PortraitClosed);
+    if (p.PortraitMid)    frames.push(p.PortraitMid);
+    if (p.PortraitOpen)   frames.push(p.PortraitOpen);
+  }
+  if (!frames.length && p.PortraitURL) frames.push(p.PortraitURL);
+
   return {
-    id:             p.PersonaID,
-    name:           p.DisplayName,
-    title:          p.Title,
-    era:            p.Era,
-    eraLabel:       p.EraLabel,
-    tag:            p.Tag,
-    tagClass:       p.TagClass,
-    desc:           p.Description,
-    intro:          p.IntroMessage,
-    portrait:       p.PortraitURL || "",
-    portraitClosed: p.PortraitClosed || p.PortraitURL || "",
-    portraitMid:    p.PortraitMid    || "",
-    portraitOpen:   p.PortraitOpen   || "",
-    system:         p.SystemPrompt,
-    voiceId:        p.VoiceID || "",
+    id:          p.PersonaID,
+    name:        p.DisplayName,
+    title:       p.Title,
+    era:         p.Era,
+    eraLabel:    p.EraLabel,
+    tag:         p.Tag,
+    tagClass:    p.TagClass,
+    desc:        p.Description,
+    intro:       p.IntroMessage,
+    portrait:    frames[0] || p.PortraitURL || "",
+    frames:      frames,
+    system:      p.SystemPrompt,
+    voiceId:     p.VoiceID || "",
     suggestions: (p.SuggestedQ_EN && p.SuggestedQ_EN.length) ? p.SuggestedQ_EN : [],
     suggestionsAll: {
       en: p.SuggestedQ_EN || [],
