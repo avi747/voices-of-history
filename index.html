@@ -576,13 +576,13 @@
     flex-direction: column;
     align-items: center;
     padding: 16px 12px 16px 16px;
-    width: 200px;
+    width: 280px;
   }
 
   .portrait-frame {
     position: relative;
-    width: 172px;
-    height: 220px;
+    width: 250px;
+    height: 320px;
   }
 
   /* Outer glow ring — pulses when speaking */
@@ -630,79 +630,32 @@
     pointer-events: none;
   }
 
-  /* Portrait wrapper — handles position shift (head tilt/sway) */
+  /* Portrait wrapper — static, no movement */
   .portrait-mover {
     position: relative;
-    width: 172px;
-    height: 220px;
-    animation: idleSway 7s ease-in-out infinite;
-    transform-origin: bottom center;
+    width: 250px;
+    height: 320px;
     z-index: 1;
   }
 
-  .portrait-mover.speaking {
-    animation: speakMove 2.8s ease-in-out infinite;
-  }
-
-  @keyframes idleSway {
-    0%   { transform: rotate(0deg)    translateX(0px)   translateY(0px); }
-    15%  { transform: rotate(0.4deg)  translateX(1px)   translateY(-1px); }
-    30%  { transform: rotate(0.6deg)  translateX(2px)   translateY(-2px); }
-    45%  { transform: rotate(0.2deg)  translateX(1px)   translateY(-1px); }
-    55%  { transform: rotate(-0.3deg) translateX(-1px)  translateY(-1px); }
-    70%  { transform: rotate(-0.6deg) translateX(-2px)  translateY(-2px); }
-    85%  { transform: rotate(-0.3deg) translateX(-1px)  translateY(-1px); }
-    100% { transform: rotate(0deg)    translateX(0px)   translateY(0px); }
-  }
-
-  @keyframes speakMove {
-    0%   { transform: rotate(0deg)    translateX(0px)  translateY(0px); }
-    12%  { transform: rotate(0.8deg)  translateX(2px)  translateY(-2px); }
-    25%  { transform: rotate(1deg)    translateX(3px)  translateY(-3px); }
-    37%  { transform: rotate(0.4deg)  translateX(1px)  translateY(-1px); }
-    50%  { transform: rotate(-0.6deg) translateX(-2px) translateY(-2px); }
-    62%  { transform: rotate(-1deg)   translateX(-3px) translateY(-3px); }
-    75%  { transform: rotate(-0.5deg) translateX(-1px) translateY(-1px); }
-    87%  { transform: rotate(0.2deg)  translateX(1px)  translateY(-1px); }
-    100% { transform: rotate(0deg)    translateX(0px)  translateY(0px); }
-  }
-
-  /* Portrait image — handles scale + lighting */
+  /* Portrait image — static, with subtle lighting shift only when speaking */
   .portrait-animated {
-    width: 172px;
-    height: 220px;
+    width: 250px;
+    height: 320px;
     border-radius: 2px;
     object-fit: cover;
     object-position: top center;
     border: 2px solid var(--gold);
-    filter: sepia(30%) contrast(1.08) brightness(0.95);
-    animation: idleLighting 7s ease-in-out infinite;
-    transform-origin: center;
+    filter: sepia(28%) contrast(1.08) brightness(0.97);
     position: relative;
     display: block;
     box-shadow:
-      4px 4px 16px rgba(0,0,0,0.4);
-  }
-
-  @keyframes idleLighting {
-    0%   { filter: sepia(30%) contrast(1.08) brightness(0.95); transform: scale(1); }
-    25%  { filter: sepia(26%) contrast(1.09) brightness(0.97); transform: scale(1.005); }
-    50%  { filter: sepia(24%) contrast(1.10) brightness(0.98); transform: scale(1.008); }
-    75%  { filter: sepia(26%) contrast(1.09) brightness(0.97); transform: scale(1.005); }
-    100% { filter: sepia(30%) contrast(1.08) brightness(0.95); transform: scale(1); }
+      4px 4px 20px rgba(0,0,0,0.4);
+    transition: filter 0.3s ease;
   }
 
   .portrait-animated.speaking {
-    animation: speakLighting 2.8s ease-in-out infinite;
-  }
-
-  @keyframes speakLighting {
-    0%   { filter: sepia(18%) contrast(1.12) brightness(1.02); transform: scale(1.01); }
-    20%  { filter: sepia(14%) contrast(1.14) brightness(1.06); transform: scale(1.018); }
-    40%  { filter: sepia(16%) contrast(1.13) brightness(1.04); transform: scale(1.014); }
-    60%  { filter: sepia(14%) contrast(1.14) brightness(1.07); transform: scale(1.018); }
-    80%  { filter: sepia(16%) contrast(1.12) brightness(1.04); transform: scale(1.012); }
-    100% { filter: sepia(18%) contrast(1.12) brightness(1.02); transform: scale(1.01); }
+    filter: sepia(18%) contrast(1.12) brightness(1.04);
   }
 
   /* Candlelight flicker layer */
@@ -1176,17 +1129,9 @@ function scheduleBlink() {
 }
 
 function doBlink() {
-  var img = document.getElementById('portrait-animated');
-  if (!img) return;
-  // Quick scale-Y squish to simulate blink
-  img.style.transition = 'transform 0.06s ease';
-  img.style.transform = 'scaleY(0.94)';
-  setTimeout(function() {
-    img.style.transform = '';
-    setTimeout(function() {
-      img.style.transition = '';
-    }, 80);
-  }, 80);
+  // Blink disabled — was causing portrait to scale/move.
+  // Could be re-implemented as eye overlay layers if needed.
+  return;
 }
 
 function stopBlinking() {
@@ -1355,18 +1300,10 @@ function startAmplitudeAnimation(audioEl) {
           : 'transparent';
       }
 
-      // Head nudge — vertical bob on amplitude peaks
-      if (mover) {
-        var nudge = amp > 0.15 ? -(amp * 3) : 0;
-        mover.style.marginTop = (mover.classList.contains('speaking') ? nudge * 0.5 : nudge) + 'px';
-      }
-
-      // Brightness pulse on peaks
+      // Brightness pulse on peaks — portrait stays still
       if (imgEl && amp > 0.2) {
-        var boost = 1 + amp * 0.12;
+        var boost = 1 + amp * 0.1;
         imgEl.style.filter = 'sepia(18%) contrast(1.12) brightness(' + boost + ')';
-      } else if (imgEl) {
-        imgEl.style.filter = '';
       }
     }
 
