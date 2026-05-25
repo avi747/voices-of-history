@@ -1241,6 +1241,9 @@ function toggleAudio() {
 }
 
 var ampAnimFrame = null;
+var currentAnalyser = null;
+var currentAmpData  = null;
+var ampSmoothVal    = 0;
 
 function playAudioB64(b64) {
   stopAudio();
@@ -1281,12 +1284,15 @@ function playAudioB64(b64) {
       };
     }
 
+    // Wire up Web Audio once per audio element
+    wireAnalyser(currentAudio);
+
     setPortraitSpeaking(true);
     currentAudio.play();
-    startAmplitudeAnimation(currentAudio);
+    runAmpLoop();  // start the animation loop
 
     currentAudio.onended = function() {
-      stopAmplitudeAnimation();
+      pauseAmpLoop();
       setPortraitSpeaking(false);
       if (wave)    wave.classList.remove('playing');
       if (ppBtn)   ppBtn.textContent = '▶';
@@ -1299,75 +1305,85 @@ function playAudioB64(b64) {
   }
 }
 
-function startAmplitudeAnimation(audioEl) {
+// Wire analyser once to the audio element — do NOT call again for same element
+function wireAnalyser(audioEl) {
   try {
-    // Always create a fresh AudioContext — reusing causes silent failure on replay
-    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    var source   = audioCtx.createMediaElementSource(audioEl);
-    var analyser = audioCtx.createAnalyser();
+    currentAnalyser = null;
+    currentAmpData  = null;
+    ampSmoothVal    = 0;
+    var ctx      = new (window.AudioContext || window.webkitAudioContext)();
+    var source   = ctx.createMediaElementSource(audioEl);
+    var analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
     analyser.smoothingTimeConstant = 0.7;
     source.connect(analyser);
-    analyser.connect(audioCtx.destination);
-
-    var dataArray = new Uint8Array(analyser.frequencyBinCount);
-    var mouth  = document.getElementById('portrait-mouth');
-    var mover  = document.getElementById('portrait-mover');
-    var imgEl  = document.getElementById('portrait-animated');
-    var smoothAmp = 0;
-
-    function tick() {
-      ampAnimFrame = requestAnimationFrame(tick);
-      analyser.getByteFrequencyData(dataArray);
-
-      // Average mid-range speech frequencies
-      var sum = 0;
-      var count = Math.floor(dataArray.length * 0.4);
-      for (var i = 4; i < count; i++) { sum += dataArray[i]; }
-      var raw = sum / (count - 4) / 255;
-
-      // Smooth it
-      smoothAmp = smoothAmp * 0.6 + raw * 0.4;
-      var amp = smoothAmp;
-
-      // Mouth — swap between frame images if multi-frame, else shadow overlay
-      if (portraitFrames.length > 1) {
-        setFrameByAmplitude(amp);
-        if (mouth) { mouth.style.background = 'transparent'; mouth.style.transform = 'translateX(-50%)'; }
-      } else if (mouth) {
-        var scaleY = 1 + amp * 2.5;
-        var scaleX = 1 + amp * 0.8;
-        mouth.style.transform = 'translateX(-50%) scaleY(' + scaleY + ') scaleX(' + scaleX + ')';
-        mouth.style.background = amp > 0.08
-          ? 'radial-gradient(ellipse, rgba(0,0,0,' + (amp * 0.35) + ') 30%, transparent 70%)'
-          : 'transparent';
-      }
-
-      // Brightness pulse on peaks — portrait stays still
-      if (imgEl && amp > 0.2) {
-        var boost = 1 + amp * 0.1;
-        imgEl.style.filter = 'sepia(18%) contrast(1.12) brightness(' + boost + ')';
-      }
-    }
-
-    tick();
+    analyser.connect(ctx.destination);
+    currentAnalyser = analyser;
+    currentAmpData  = new Uint8Array(analyser.frequencyBinCount);
   } catch(e) {
-    console.log('Amplitude animation unavailable:', e.message);
+    console.log('Web Audio wiring failed:', e.message);
   }
 }
 
-function stopAmplitudeAnimation() {
+// Start (or restart) the rAF loop
+function runAmpLoop() {
+  if (ampAnimFrame) cancelAnimationFrame(ampAnimFrame);
+  if (!currentAnalyser) return;
+
+  var mouth = document.getElementById('portrait-mouth');
+  var imgEl = document.getElementById('portrait-animated');
+
+  function tick() {
+    ampAnimFrame = requestAnimationFrame(tick);
+    currentAnalyser.getByteFrequencyData(currentAmpData);
+
+    var sum = 0;
+    var count = Math.floor(currentAmpData.length * 0.4);
+    for (var i = 4; i < count; i++) { sum += currentAmpData[i]; }
+    var raw = sum / (count - 4) / 255;
+
+    ampSmoothVal = ampSmoothVal * 0.6 + raw * 0.4;
+    var amp = ampSmoothVal;
+
+    if (portraitFrames.length > 1) {
+      setFrameByAmplitude(amp);
+      if (mouth) { mouth.style.background = 'transparent'; mouth.style.transform = 'translateX(-50%)'; }
+    } else if (mouth) {
+      var scaleY = 1 + amp * 2.5;
+      var scaleX = 1 + amp * 0.8;
+      mouth.style.transform = 'translateX(-50%) scaleY(' + scaleY + ') scaleX(' + scaleX + ')';
+      mouth.style.background = amp > 0.08
+        ? 'radial-gradient(ellipse, rgba(0,0,0,' + (amp * 0.35) + ') 30%, transparent 70%)'
+        : 'transparent';
+    }
+
+    if (imgEl && amp > 0.2) {
+      imgEl.style.filter = 'sepia(18%) contrast(1.12) brightness(' + (1 + amp * 0.1) + ')';
+    }
+  }
+
+  tick();
+}
+
+// Pause loop only — keep analyser wired
+function pauseAmpLoop() {
   if (ampAnimFrame) {
     cancelAnimationFrame(ampAnimFrame);
     ampAnimFrame = null;
   }
   var mouth = document.getElementById('portrait-mouth');
-  var mover = document.getElementById('portrait-mover');
   var imgEl = document.getElementById('portrait-animated');
   if (mouth) { mouth.style.transform = 'translateX(-50%)'; mouth.style.background = 'transparent'; }
-  if (mover) { mover.style.marginTop = '0px'; }
   if (imgEl) { imgEl.style.filter = ''; }
   resetToFirstFrame();
+}
+
+// Full stop — clear everything
+function stopAmplitudeAnimation() {
+  pauseAmpLoop();
+  currentAnalyser = null;
+  currentAmpData  = null;
+  ampSmoothVal    = 0;
 }
 
 function togglePlayPause() {
@@ -1379,13 +1395,13 @@ function togglePlayPause() {
     if (ppBtn) ppBtn.textContent = '⏸';
     if (wave)  wave.classList.add('playing');
     setPortraitSpeaking(true);
-    startAmplitudeAnimation(currentAudio);
+    runAmpLoop();   // resume loop — analyser already wired
   } else {
     currentAudio.pause();
     if (ppBtn) ppBtn.textContent = '▶';
     if (wave)  wave.classList.remove('playing');
     setPortraitSpeaking(false);
-    stopAmplitudeAnimation();
+    pauseAmpLoop(); // pause loop only
   }
 }
 
