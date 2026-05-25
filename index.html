@@ -1163,6 +1163,26 @@ function stopBlinking() {
   if (blinkTimer) { clearTimeout(blinkTimer); blinkTimer = null; }
 }
 
+function fetchIntroAudio(persona) {
+  // Build a minimal one-message history with the intro as the assistant's opening
+  // We call ElevenLabs via GAS by sending the intro text as a chat response to fetch
+  var introURL = GAS_URL
+    + "?action=tts"
+    + "&personaId=" + encodeURIComponent(persona.id)
+    + "&text=" + encodeURIComponent(persona.intro);
+
+  fetch(introURL)
+    .then(function(res) { return res.json(); })
+    .then(function(data) {
+      if (data.audio) {
+        playAudioB64(data.audio);
+      }
+    })
+    .catch(function(err) {
+      console.log('Intro audio fetch failed:', err);
+    });
+}
+
 // ── LANGUAGE ──
 function setLanguage(lang, btn, context) {
   currentLanguage = lang;
@@ -1220,7 +1240,6 @@ function toggleAudio() {
   }
 }
 
-var audioCtx = null;
 var ampAnimFrame = null;
 
 function playAudioB64(b64) {
@@ -1282,9 +1301,8 @@ function playAudioB64(b64) {
 
 function startAmplitudeAnimation(audioEl) {
   try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
+    // Always create a fresh AudioContext — reusing causes silent failure on replay
+    var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     var source   = audioCtx.createMediaElementSource(audioEl);
     var analyser = audioCtx.createAnalyser();
     analyser.fftSize = 256;
@@ -1554,6 +1572,11 @@ function openChat(persona) {
 
   // Render intro message
   appendMessage('persona', persona.intro, persona.name);
+
+  // Auto-play intro with animation if audio is enabled
+  if (audioEnabled && persona.intro) {
+    fetchIntroAudio(persona);
+  }
 
   // Suggested questions — language aware
   var sq = document.getElementById('suggested-questions');
