@@ -125,209 +125,152 @@
   @media (max-width: 640px) {
 
     /* ── SELECT SCREEN ── */
-    .select-screen {
-      padding: 24px 16px 32px;
-    }
+    .select-screen { padding: 20px 14px 28px; }
+    .title-block { margin-bottom: 20px; }
+    .main-title { font-size: clamp(26px, 7vw, 38px); letter-spacing: 0.05em; }
+    .subtitle { font-size: 12px; letter-spacing: 0.1em; }
+    .lang-selector { margin-bottom: 18px; gap: 5px; }
+    .lang-btn { font-size: 11px; padding: 4px 9px; }
+    .persona-grid { grid-template-columns: 1fr; max-width: 100%; gap: 12px; }
+    .persona-card { padding: 18px 14px 16px; }
 
-    .title-block { margin-bottom: 24px; }
-
-    .main-title {
-      font-size: clamp(28px, 8vw, 42px);
-      letter-spacing: 0.06em;
-    }
-
-    .subtitle {
-      font-size: 13px;
-      letter-spacing: 0.12em;
-    }
-
-    .lang-selector { margin-bottom: 20px; gap: 5px; }
-    .lang-btn { font-size: 11px; padding: 4px 10px; }
-
-    .persona-grid {
-      grid-template-columns: 1fr;
-      max-width: 100%;
-      gap: 14px;
-    }
-
-    .persona-card { padding: 20px 16px 18px; }
-
-    .avatar-card {
-      width: 52px;
-      height: 52px;
-      font-size: 18px;
-    }
-
-    .persona-name { font-size: 22px; }
-    .persona-title { font-size: 12px; }
-    .persona-desc { font-size: 14px; }
-
-    /* ── CHAT HEADER ── */
+    /* ── CHAT HEADER — simplified, single row ── */
     .chat-header {
-      padding: 10px 14px;
-      gap: 10px;
-    }
-
-    .back-btn {
-      font-size: 15px;
-      padding: 5px 9px;
-    }
-
-    .chat-persona-name { font-size: 18px; }
-    .chat-persona-tagline { font-size: 11px; }
-
-    .chat-lang-selector { gap: 3px; }
-    .chat-lang-btn { font-size: 10px; padding: 2px 6px; }
-
-    /* Small avatar in header on mobile */
-    .avatar-header {
-      width: 36px;
-      height: 36px;
-      font-size: 13px;
-    }
-
-    /* ── CHAT BODY — stack portrait above messages ── */
-    .chat-body {
-      flex-direction: column;
+      padding: 8px 12px;
+      gap: 8px;
+      flex-wrap: nowrap;
       overflow: hidden;
     }
 
-    .portrait-stage {
-      width: 100%;
-      flex-direction: row;
-      align-items: center;
-      padding: 10px 16px;
-      gap: 14px;
-      background: rgba(0,0,0,0.12);
-      border-bottom: 1px solid rgba(201,151,58,0.2);
-      flex-shrink: 0;
-    }
+    /* Hide era badge and avatar in header on mobile — saves space */
+    .chat-era-badge { display: none; }
+    #header-avatar-wrap { display: none; }
 
-    .portrait-frame {
-      width: 70px;
-      height: 90px;
-      flex-shrink: 0;
-    }
+    .back-btn { font-size: 13px; padding: 5px 8px; flex-shrink: 0; }
 
-    .portrait-mover {
-      width: 70px;
-      height: 90px;
-    }
+    .chat-persona-info { flex: 1; min-width: 0; overflow: hidden; }
+    .chat-persona-name { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-persona-tagline { font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .portrait-animated {
-      width: 70px;
-      height: 90px;
-    }
+    /* Language selector — tight, right-aligned */
+    .chat-lang-selector { gap: 2px; flex-shrink: 0; }
+    .chat-lang-btn { font-size: 9px; padding: 2px 5px; }
 
-    .portrait-glow { inset: -4px; }
-
-    .portrait-name {
-      font-size: 10px;
-      margin-top: 0;
-      border-top: none;
-      padding-top: 0;
-      text-align: left;
-      width: auto;
-    }
-
-    /* Audio controls go beside the portrait on mobile */
-    .portrait-audio-controls {
-      flex: 1;
+    /* ── CHAT BODY — portrait top strip ── */
+    .chat-body {
       flex-direction: column;
-      align-items: flex-start;
-      margin-top: 0;
-      gap: 6px;
+      overflow: hidden;
+      min-height: 0;
+      flex: 1;
+    }
+
+    /* Portrait strip — horizontal bar across top */
+    #portrait-stage {
+      width: 100% !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      padding: 8px 14px !important;
+      gap: 12px !important;
+      background: rgba(0,0,0,0.15) !important;
+      border-bottom: 1px solid rgba(201,151,58,0.25) !important;
+      flex-shrink: 0 !important;
+    }
+
+    /* Small portrait in strip */
+    #portrait-stage .portrait-frame {
+      width: 64px !important;
+      height: 82px !important;
+      flex-shrink: 0 !important;
+    }
+
+    #portrait-stage .portrait-mover {
+      width: 64px !important;
+      height: 82px !important;
+    }
+
+    #portrait-stage .portrait-animated {
+      width: 64px !important;
+      height: 82px !important;
+    }
+
+    #portrait-stage .portrait-glow { inset: -3px !important; }
+    .portrait-frame::before, .portrait-frame::after { display: none !important; }
+
+    /* Name beside portrait */
+    #portrait-stage .portrait-name {
+      font-size: 10px !important;
+      margin-top: 0 !important;
+      border-top: none !important;
+      padding-top: 0 !important;
+      text-align: left !important;
+      width: auto !important;
+      flex-shrink: 0 !important;
+    }
+
+    /* Audio controls fill remaining space in strip */
+    .portrait-audio-controls {
+      flex: 1 !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      margin-top: 0 !important;
+      gap: 8px !important;
+      flex-wrap: wrap !important;
     }
 
     .portrait-audio-controls .audio-toggle {
-      width: auto;
-      font-size: 10px;
-      padding: 3px 8px;
+      width: auto !important;
+      font-size: 10px !important;
+      padding: 3px 8px !important;
+      white-space: nowrap !important;
     }
 
     .portrait-audio-controls .audio-player {
-      width: auto;
+      width: auto !important;
+      flex-wrap: nowrap !important;
     }
 
     .portrait-audio-controls .audio-progress-wrap {
-      width: 80px;
+      width: 60px !important;
+      max-width: 60px !important;
     }
 
-    .portrait-frame::before,
-    .portrait-frame::after { display: none; }
-
-    /* Messages fill the remaining space */
+    /* Messages full width */
     .chat-messages-wrap {
-      flex: 1;
-      padding: 16px 14px;
-      gap: 14px;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
+      flex: 1 !important;
+      padding: 14px 12px !important;
+      gap: 12px !important;
+      overflow-y: auto !important;
+      -webkit-overflow-scrolling: touch !important;
+      min-height: 0 !important;
     }
 
-    /* ── MESSAGE BUBBLES ── */
-    .message-persona {
-      max-width: 92%;
-      font-size: 15px;
-    }
-
-    .message-user {
-      max-width: 88%;
-      font-size: 15px;
-    }
-
-    .message-persona .msg-name {
-      font-size: 11px;
-    }
+    /* ── MESSAGES ── */
+    .message-persona, .message-user { max-width: 92%; }
+    .msg-bubble { font-size: 15px; line-height: 1.55; }
 
     /* ── INPUT AREA ── */
-    .chat-input-area {
-      padding: 10px 12px 14px;
-    }
+    .chat-input-area { padding: 8px 12px 12px; }
 
-    .suggested-questions {
-      gap: 6px;
-      margin-bottom: 10px;
-    }
+    .suggested-questions { gap: 5px; margin-bottom: 8px; }
+    .sq-btn { font-size: 12px; padding: 4px 9px; }
 
-    .sq-btn {
-      font-size: 12px;
-      padding: 4px 10px;
-    }
+    .input-row { gap: 7px; }
 
-    .input-row { gap: 8px; }
+    /* font-size 16px prevents iOS zoom */
+    #chat-input { font-size: 16px; padding: 10px 12px; min-height: 44px; }
+    #send-btn { height: 44px; padding: 0 12px; font-size: 12px; }
 
-    #chat-input {
-      font-size: 16px; /* prevents iOS zoom on focus */
-      padding: 10px 12px;
-      min-height: 44px;
-    }
-
-    #send-btn {
-      height: 44px;
-      padding: 0 14px;
-      font-size: 12px;
-    }
-
-    .disclaimer { font-size: 10px; margin-top: 6px; }
-
+    .disclaimer { font-size: 10px; margin-top: 5px; }
   }
 
   /* ── TABLET — 641px to 900px ── */
   @media (min-width: 641px) and (max-width: 900px) {
-
-    .persona-grid {
-      grid-template-columns: repeat(2, 1fr);
-      max-width: 640px;
-    }
-
+    .persona-grid { grid-template-columns: repeat(2, 1fr); max-width: 640px; }
     .portrait-stage { width: 200px; }
     .portrait-frame { width: 172px; height: 220px; }
     .portrait-mover { width: 172px; height: 220px; }
     .portrait-animated { width: 172px; height: 220px; }
-
     .main-title { font-size: clamp(36px, 6vw, 56px); }
-
   }
 
 
