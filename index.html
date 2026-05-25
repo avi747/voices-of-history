@@ -763,6 +763,31 @@
     pointer-events: none;
   }
 
+
+  .portrait-audio-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    width: 100%;
+  }
+
+  .portrait-audio-controls .audio-toggle {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .portrait-audio-controls .audio-player {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .portrait-audio-controls .audio-progress-wrap {
+    flex: 1;
+    max-width: 120px;
+  }
+
   /* ── LANGUAGE SELECTOR ── */
   .lang-selector {
     display: flex;
@@ -1005,6 +1030,18 @@
         </div>
       </div>
       <div class="portrait-name" id="portrait-name"></div>
+      <div class="portrait-audio-controls">
+        <button class="audio-toggle on" id="audio-toggle-btn" onclick="toggleAudio()">🔊 Audio On</button>
+        <div class="audio-player" id="audio-player">
+          <button class="audio-pp-btn" id="audio-pp-btn" onclick="togglePlayPause()" title="Play / Pause">▶</button>
+          <div class="audio-progress-wrap" id="audio-progress-wrap">
+            <div class="audio-progress-bar" id="audio-progress-bar"></div>
+          </div>
+          <div class="audio-wave" id="audio-wave">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
     </div>
     <div class="chat-messages-wrap" id="chat-messages">
       <!-- intro injected by JS -->
@@ -1016,18 +1053,6 @@
     <div class="input-row">
       <textarea id="chat-input" rows="1" placeholder="Ask your question…"></textarea>
       <button id="send-btn" onclick="sendMessage()">Ask</button>
-    </div>
-    <div class="audio-controls">
-      <button class="audio-toggle on" id="audio-toggle-btn" onclick="toggleAudio()">🔊 Audio On</button>
-      <div class="audio-player" id="audio-player">
-        <button class="audio-pp-btn" id="audio-pp-btn" onclick="togglePlayPause()" title="Play / Pause">▶</button>
-        <div class="audio-progress-wrap" id="audio-progress-wrap">
-          <div class="audio-progress-bar" id="audio-progress-bar"></div>
-        </div>
-        <div class="audio-wave" id="audio-wave">
-          <span></span><span></span><span></span><span></span><span></span>
-        </div>
-      </div>
     </div>
     <p class="disclaimer">AI-simulated voice · Not a historical transcript</p>
   </div>
